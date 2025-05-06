@@ -16,12 +16,12 @@ from mpu6050 import mpu6050
 import smbus
 import numpy as np
 import termios
-from Actuation import *
+from actuation import *
 
 lidar = serial.Serial("/dev/ttyUSB1", 115200, timeout=0)
-interpreter = make_interpreter("mobilenet_ssd_v2_coco_quant_postprocess_edgetpu.tflite")
+interpreter = make_interpreter("model/mobilenet_ssd_v2_coco_quant_postprocess_edgetpu.tflite")
 interpreter.allocate_tensors()
-labels = read_label_file("coco_labels.txt")
+labels = read_label_file("model/coco_labels.txt")
 inference_size = input_size(interpreter)
 
 
