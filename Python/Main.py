@@ -11,10 +11,10 @@ import threading
 import numpy as np
 import termios
 from chatbot import Chatbot
-from Sensing import *
-from Actuation import *
+from sensing import *
+from actuation import *
 from arm_3_dof_planar import Arm_3_DOF_Planar
-from PID_Controller import PID_Controller
+from pid_controller import PID_Controller
 import cv2
 
 chatbot = Chatbot()
