@@ -29,12 +29,13 @@
 import math
 from i2c_core import i2c_core
 
+
 class HMC5883(object):
     # Correction to be set after calibration
-    xs=1
-    ys=1
-    xb=0
-    yb=0
+    xs = 1
+    ys = 1
+    xb = 0
+    yb = 0
 
     # Define registers values from datasheet
     ConfigurationRegisterA = 0x00
@@ -58,11 +59,12 @@ class HMC5883(object):
     MeasurementIdle = 0x03
 
     def __init__(self, address=0x1e, busnum=-1, gauss=1.3, debug=False):
-     self.debug = debug
-     self.i2c = i2c_core(address, busnum=busnum, debug=debug,)
-     self.i2c.write_8(self.ConfigurationRegisterA, 0b01110000) # Set to 8 samples @ 15Hz
-     self.set_scale(gauss, debug=debug)
-     self.set_continuous_mode() # Continuous sampling
+        self.debug = debug
+        self.i2c = i2c_core(address, busnum=busnum, debug=debug,)
+        self.i2c.write_8(self.ConfigurationRegisterA,
+                         0b01110000)  # Set to 8 samples @ 15Hz
+        self.set_scale(gauss, debug=debug)
+        self.set_continuous_mode()  # Continuous sampling
 
     def set_scale(self, gauss, debug=False):
         if gauss == 0.88:
@@ -93,7 +95,7 @@ class HMC5883(object):
         self.scale_reg = self.scale_reg << 5
         self.set_option(self.ConfigurationRegisterB, self.scale_reg)
         if debug == True:
-        	print("HMC5883L set : gauss "+gauss+", scale "+scale)
+            print("HMC5883L set : gauss "+gauss+", scale "+scale)
 
     def set_option(self, register, *function_set):
         options = 0x00
@@ -121,7 +123,7 @@ class HMC5883(object):
         else:
             magno_z = round(magno_z * self.scale, 4)
 
-	# Apply calibration corrections
+        # Apply calibration corrections
         magno_x = magno_x * self.xs + self.xb
         magno_y = magno_y * self.ys + self.yb
 
@@ -134,11 +136,11 @@ class HMC5883(object):
         heading_rad += self.declination
 
         # Correct for reversed heading
-        if(heading_rad < 0):
+        if (heading_rad < 0):
             heading_rad += 2 * math.pi
 
         # Check for wrap and compensate
-        if(heading_rad > 2 * math.pi):
+        if (heading_rad > 2 * math.pi):
             heading_rad -= 2 * math.pi
 
         # Convert to degrees from radians
@@ -172,9 +174,10 @@ class HMC5883(object):
     def set_continuous_mode(self):
         self.set_option(self.ModeRegister, self.MeasurementContinuous)
 
+
 if __name__ == "__main__":
-	# constructor defaults : address=0x1e, gauss=1.3, debug=False
-	i2c_HMC5883l = HMC5883(gauss=1.3)
-	i2c_HMC5883l.set_declination(3, 58)
-	while True:
-		print(i2c_HMC5883l.get_heading())
+    # constructor defaults : address=0x1e, gauss=1.3, debug=False
+    i2c_HMC5883l = HMC5883(gauss=1.3)
+    i2c_HMC5883l.set_declination(3, 58)
+    while True:
+        print(i2c_HMC5883l.get_heading())

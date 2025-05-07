@@ -12,7 +12,7 @@ from pycoral.adapters.detect import get_objects
 from pycoral.utils.dataset import read_label_file
 from pycoral.utils.edgetpu import make_interpreter
 from pycoral.utils.edgetpu import run_inference
-from i2c_hmc5883l import HMC5883
+from compass.i2c_hmc5883l import HMC5883
 from mpu6050 import mpu6050
 import smbus
 import numpy as np
