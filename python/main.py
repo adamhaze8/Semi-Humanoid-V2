@@ -10,14 +10,14 @@ import smbus
 import threading
 import numpy as np
 import termios
-from chatbot import Chatbot
+from chatbot import BorisChatbot
 from sensing import *
 from actuation import *
 from arm_3_dof_planar import Arm_3_DOF_Planar
 from pid_controller import PID_Controller
 import cv2
 
-chatbot = Chatbot()
+chatbot = BorisChatbot()
 arm = Arm_3_DOF_Planar(0.245, 0.203, 0.25)
 
 drive_PID_controller = PID_Controller(0.5, 0, 0.1)
@@ -335,10 +335,11 @@ def substring_after(s, delim):
     return s.partition(delim)[2]
 
 
-def level():
+def level_FB():
     arduino.write(("zeroFB").encode("utf-8"))
     pitch = get_pitch()
-    LF.rotate(pitch)
+    speak("this:" + str(pitch))
+    LF.rotate(-pitch)
     while in_motion():
         sleep(0.1)
     arduino.write(("zeroFB").encode("utf-8"))
@@ -346,8 +347,10 @@ def level():
     LF.rotate(0)
     speak("zeroed FB")
 
+def level_LR():
     arduino.write(("zeroLR").encode("utf-8"))
     roll = get_roll()
+    speak("this:" + str(roll))
     LL.rotate(roll)
     while in_motion():
         sleep(0.1)
@@ -389,7 +392,8 @@ speak("servo check completed")
 
 sleep(1)
 
-# level()
+level_FB()
+level_LR()
 
 look_at_thread = threading.Thread(target=look_at_continually, args=("person",))
 stop_event = threading.Event()
@@ -466,7 +470,19 @@ try:
         elif "distance" in message:
             speak(str(get_distance()) + "meters")
         elif "level" in message:
-            level()
+            stop_event.set()
+            look_at_thread.join()
+            NP.rotate(0)
+            NT.rotate(0)
+            while in_motion:
+                sleep(0.1)
+            level_FB()
+            level_LR()
+            look_at_thread = threading.Thread(
+                target=look_at_continually, args=("person",)
+            )
+            stop_event = threading.Event()
+            look_at_thread.start()
 
         ##### Calibration #####
 

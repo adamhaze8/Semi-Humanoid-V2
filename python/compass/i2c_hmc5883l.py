@@ -27,7 +27,7 @@
 # X and Y calibration offsets added
 
 import math
-from i2c_core import i2c_core
+from compass.i2c_core import i2c_core
 
 
 class HMC5883(object):
