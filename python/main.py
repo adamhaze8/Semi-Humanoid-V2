@@ -41,7 +41,8 @@ def go_to(location):
         angle = abs(
             math.degrees(
                 math.atan(
-                    (tar_latitude - cur_latitude) / (tar_longitude - cur_longitude)
+                    (tar_latitude - cur_latitude) /
+                    (tar_longitude - cur_longitude)
                 )
             )
         )
@@ -77,7 +78,7 @@ def approach(object, desired_dist):
     while True:
         x, y, h, w = locate(object, eye)
         if x is None:
-            drive(drive(0, 0))
+            drive(0, 0)
             speak(str(object) + "not found")
             sleep(0.01)
         else:
@@ -258,7 +259,7 @@ def grab(item):
         if get_ir_state():
             clench_gripper()
             hand.release()
-            speak("grapped")
+            speak("grabbed")
             break
         sleep(0.01)
 
@@ -278,7 +279,8 @@ def pick_up(item):
     item_dist_from_sensor = get_distance()
     neck_tilt = getattr(NT, "pos")
 
-    item_elevation = robot_camera_height - item_dist_from_sensor * np.sin(neck_tilt)
+    item_elevation = robot_camera_height - \
+        item_dist_from_sensor * np.sin(neck_tilt)
     item_dist = item_dist_from_sensor * np.cos(neck_tilt)
 
     desired_grab_dist = (
@@ -335,35 +337,24 @@ def substring_after(s, delim):
 
 def level():
     arduino.write(("zeroFB").encode("utf-8"))
-    while True:
-        pitch = get_pitch()
-        if pitch < -2:
-            LF.rotate(90)
-            print(pitch)
-        elif pitch > 2:
-            LF.rotate(-90)
-        else:
-            arduino.write(("zeroFB").encode("utf-8"))
-            sleep(0.1)
-            LF.rotate(0)
-            speak("zeroed LR")
-            sleep(1)
-            break
-        sleep(0.01)
+    pitch = get_pitch()
+    LF.rotate(pitch)
+    while in_motion():
+        sleep(0.1)
+    arduino.write(("zeroFB").encode("utf-8"))
+    sleep(0.1)
+    LF.rotate(0)
+    speak("zeroed FB")
 
     arduino.write(("zeroLR").encode("utf-8"))
-    while True:
-        roll = get_roll()
-        if roll < -2:
-            LL.rotate(-90)
-        elif roll > 2:
-            LL.rotate(90)
-        else:
-            arduino.write(("zeroLR").encode("utf-8"))
-            sleep(0.1)
-            LL.rotate(0)
-            break
-        sleep(0.01)
+    roll = get_roll()
+    LL.rotate(roll)
+    while in_motion():
+        sleep(0.1)
+    arduino.write(("zeroLR").encode("utf-8"))
+    sleep(0.1)
+    LL.rotate(0)
+    speak("zeroed LR")
 
 
 def look_at_continually(item):
@@ -399,8 +390,6 @@ speak("servo check completed")
 sleep(1)
 
 # level()
-
-print("here" + str(get_ir_state()))
 
 look_at_thread = threading.Thread(target=look_at_continually, args=("person",))
 stop_event = threading.Event()

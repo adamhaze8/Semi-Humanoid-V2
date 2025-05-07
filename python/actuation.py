@@ -24,7 +24,8 @@ class joint:
         self.name = name
 
     def rotate(self, angle):
-        arduino.write((str(self.name) + str(int(angle)) + "\n").encode("utf-8"))
+        arduino.write(
+            (str(self.name) + str(int(angle)) + "\n").encode("utf-8"))
         self.pos = int(angle)
 
 
@@ -64,3 +65,11 @@ def in_motion():
 
 def speak(message):
     os.system('espeak "' + message + '"')
+
+
+def clench_gripper():
+    arduino.write(("clench" + "\n").encode("utf-8"))
+
+
+def release_gripper():
+    arduino.write(("release" + "\n").encode("utf-8"))

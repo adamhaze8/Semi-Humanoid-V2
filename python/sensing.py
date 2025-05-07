@@ -1,5 +1,6 @@
 ###################################### SETUP ######################################
 import speech_recognition as sr
+import RPi.GPIO as GPIO
 import time
 from time import sleep
 import serial
@@ -19,10 +20,16 @@ import termios
 from actuation import *
 
 lidar = serial.Serial("/dev/ttyUSB1", 115200, timeout=0)
-interpreter = make_interpreter("model/mobilenet_ssd_v2_coco_quant_postprocess_edgetpu.tflite")
+
+interpreter = make_interpreter(
+    "model/mobilenet_ssd_v2_coco_quant_postprocess_edgetpu.tflite")
 interpreter.allocate_tensors()
 labels = read_label_file("model/coco_labels.txt")
 inference_size = input_size(interpreter)
+
+ir_sensor = 16
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(ir_sensor, GPIO.IN)
 
 
 def listen():
@@ -143,11 +150,19 @@ def get_distance():
                 sleep(0.005)
             data = lidar.read(9)  # read 9 bytes
             if data[0] == 0x59 and data[1] == 0x59:  # check first two bytes
-                distance = data[2] + data[3] * 256  # distance in next two bytes
-                strength = data[4] + data[5] * 256  # signal strength in next two bytes
+                # distance in next two bytes
+                distance = data[2] + data[3] * 256
+                # signal strength in next two bytes
+                strength = data[4] + data[5] * 256
                 temperature = data[6] + data[7] * 256  # temp in next two bytes
-                temperature = (temperature / 8.0) - 256.0  # temp scaling and offset
+                temperature = (temperature / 8.0) - \
+                    256.0  # temp scaling and offset
                 return distance / 100
         except termios.error:
             sleep(0.1)
             continue
+
+
+def get_ir_state():
+    sensor_state = GPIO.input(ir_sensor)
+    return (sensor_state == GPIO.LOW)

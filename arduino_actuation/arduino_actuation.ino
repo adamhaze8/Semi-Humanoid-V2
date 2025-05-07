@@ -219,8 +219,22 @@ void updateActuators() {
 }
 
 bool inMotion() {
-  return (abs(leftWristPos - leftWristTar) > 1 || abs(leftShoulderPos - leftShoulderTar) > 1 || abs(leftElbowPos - leftElbowTar) > 1 || abs(leftShoulderTwistPos - leftShoulderTwistTar) > 1 || abs(rightWristPos - rightWristTar) > 1 || abs(rightShoulderPos - rightShoulderTar) > 1 || abs(rightElbowPos - rightElbowTar) > 1 || abs(rightShoulderTwistPos - rightShoulderTwistTar) > 1 || abs(neckPanPos - neckPanTar) > 1 || abs(neckTiltPos - neckTiltTar) > 1);
+  return (
+    abs(leftWristPos - leftWristTar) > 1 ||
+    abs(leftShoulderPos - leftShoulderTar) > 1 ||
+    abs(leftElbowPos - leftElbowTar) > 1 ||
+    abs(leftShoulderTwistPos - leftShoulderTwistTar) > 1 ||
+    abs(rightWristPos - rightWristTar) > 1 ||
+    abs(rightShoulderPos - rightShoulderTar) > 1 ||
+    abs(rightElbowPos - rightElbowTar) > 1 ||
+    abs(rightShoulderTwistPos - rightShoulderTwistTar) > 1 ||
+    abs(neckPanPos - neckPanTar) > 1 ||
+    abs(neckTiltPos - neckTiltTar) > 1 ||
+    abs(angleFB - desiredLeanFBAngle) > 1 ||
+    abs(angleLR - desiredLeanLRAngle) > 1
+  );
 }
+
 
 //////////////////////////////////////////////////// DRIVING ////////////////////////////////////////////////////
 
@@ -242,7 +256,7 @@ void drive(int leftSpeed, int rightSpeed) {
 void lean() {
   linearPosFB += (lastDirFB * (10.0 / 1000) * (millis() - lastActFB));
   lastActFB = millis();
-  angleFB = linearPosFB * 1;
+  angleFB = linearPosFB * 1; // Approximated
 
   if ((linearPosFB < 20) && (angleFB < desiredLeanFBAngle)) {
     analogWrite(enBl, MAX_PWM);
@@ -261,7 +275,7 @@ void lean() {
 
   linearPosLR += (lastDirLR * (10.0 / 1000) * (millis() - lastActLR));
   lastActLR = millis();
-  angleLR = linearPosLR * 1;
+  angleLR = linearPosLR * 0.64; // Approximated
 
   if ((linearPosLR < 10) && (angleLR < desiredLeanLRAngle)) {
     analogWrite(enAl, MAX_PWM);
