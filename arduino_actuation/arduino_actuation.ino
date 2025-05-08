@@ -180,8 +180,8 @@ void updateActuators() {
     } else if (data.charAt(0) == 'D') {
       String leftSpeedStr = data.substring(1, 3);
       String rightSpeedStr = data.substring(3, 5);
-      int leftSpeed = map(leftSpeedStr.toInt(), 0, 99, -MAX_PWM, MAX_PWM);
-      int rightSpeed = map(rightSpeedStr.toInt(), 0, 99, MAX_PWM, -MAX_PWM);
+      int leftSpeed = (leftSpeedStr.toInt() - 50) * 2;
+      int rightSpeed = (rightSpeedStr.toInt() - 50) * 2;
       drive(leftSpeed, rightSpeed);
     } else {
       String angle = data.substring(2, 6);
@@ -220,43 +220,38 @@ void updateActuators() {
 
 bool inMotion() {
   return (
-    abs(leftWristPos - leftWristTar) > 1 ||
-    abs(leftShoulderPos - leftShoulderTar) > 1 ||
-    abs(leftElbowPos - leftElbowTar) > 1 ||
-    abs(leftShoulderTwistPos - leftShoulderTwistTar) > 1 ||
-    abs(rightWristPos - rightWristTar) > 1 ||
-    abs(rightShoulderPos - rightShoulderTar) > 1 ||
-    abs(rightElbowPos - rightElbowTar) > 1 ||
-    abs(rightShoulderTwistPos - rightShoulderTwistTar) > 1 ||
-    abs(neckPanPos - neckPanTar) > 1 ||
-    abs(neckTiltPos - neckTiltTar) > 1 ||
-    abs(angleFB - desiredLeanFBAngle) > 1 ||
-    abs(angleLR - desiredLeanLRAngle) > 1
-  );
+    abs(leftWristPos - leftWristTar) > 1 || abs(leftShoulderPos - leftShoulderTar) > 1 || abs(leftElbowPos - leftElbowTar) > 1 || abs(leftShoulderTwistPos - leftShoulderTwistTar) > 1 || abs(rightWristPos - rightWristTar) > 1 || abs(rightShoulderPos - rightShoulderTar) > 1 || abs(rightElbowPos - rightElbowTar) > 1 || abs(rightShoulderTwistPos - rightShoulderTwistTar) > 1 || abs(neckPanPos - neckPanTar) > 1 || abs(neckTiltPos - neckTiltTar) > 1 || abs(angleFB - desiredLeanFBAngle) > 1 || abs(angleLR - desiredLeanLRAngle) > 1);
 }
 
 
 //////////////////////////////////////////////////// DRIVING ////////////////////////////////////////////////////
 
 void drive(int leftSpeed, int rightSpeed) {
+  leftSpeed = constrain(leftSpeed, -100, 100);
+  rightSpeed = constrain(rightSpeed, -100, 100);
+
   int leftDirection = (leftSpeed >= 0) ? LOW : HIGH;
   int rightDirection = (rightSpeed >= 0) ? LOW : HIGH;
 
-  analogWrite(enAd, abs(leftSpeed));
+  int leftPWM = map(abs(leftSpeed), 0, 100, 0, 255);
+  int rightPWM = map(abs(rightSpeed), 0, 100, 0, 255);
+
+  analogWrite(enAd, leftPWM);
   digitalWrite(in1d, leftDirection);
   digitalWrite(in2d, !leftDirection);
 
-  analogWrite(enBd, abs(rightSpeed));
+  analogWrite(enBd, rightPWM);
   digitalWrite(in3d, rightDirection);
   digitalWrite(in4d, !rightDirection);
 }
+
 
 //////////////////////////////////////////////////// LEANING ////////////////////////////////////////////////////
 
 void lean() {
   linearPosFB += (lastDirFB * (10.0 / 1000) * (millis() - lastActFB));
   lastActFB = millis();
-  angleFB = linearPosFB * 1; // Approximated
+  angleFB = linearPosFB * 1;  // Approximated
 
   if ((linearPosFB < 20) && (angleFB < desiredLeanFBAngle)) {
     analogWrite(enBl, MAX_PWM);
@@ -275,7 +270,7 @@ void lean() {
 
   linearPosLR += (lastDirLR * (10.0 / 1000) * (millis() - lastActLR));
   lastActLR = millis();
-  angleLR = linearPosLR * 0.64; // Approximated
+  angleLR = linearPosLR * 0.64;  // Approximated
 
   if ((linearPosLR < 10) && (angleLR < desiredLeanLRAngle)) {
     analogWrite(enAl, MAX_PWM);
@@ -340,23 +335,23 @@ void moveLeftShoulder(float deltaTime) {
 }
 
 void moveRightShoulderTwist(float deltaTime) {
-  rightShoulderTwistTar = constrain(rightShoulderTwistTar, -FULL_ROTATION/2, FULL_ROTATION/2);
+  rightShoulderTwistTar = constrain(rightShoulderTwistTar, -FULL_ROTATION / 2, FULL_ROTATION / 2);
   if (abs(rightShoulderTwistTar - rightShoulderTwistPos) > 1) {
     int dir = (rightShoulderTwistTar - rightShoulderTwistPos) / abs(rightShoulderTwistTar - rightShoulderTwistPos);
     float movement = servoSpeed * deltaTime * FULL_ROTATION;
     rightShoulderTwistPos += dir * movement;
-    int pwmVal = map(rightShoulderTwistPos, -FULL_ROTATION/2, FULL_ROTATION/2, 2140, 860);
+    int pwmVal = map(rightShoulderTwistPos, -FULL_ROTATION / 2, FULL_ROTATION / 2, 2140, 860);
     rightShoulderTwist.writeMicroseconds(pwmVal);
   }
 }
 
 void moveLeftShoulderTwist(float deltaTime) {
-  leftShoulderTwistTar = constrain(leftShoulderTwistTar, -FULL_ROTATION/2, FULL_ROTATION/2);
+  leftShoulderTwistTar = constrain(leftShoulderTwistTar, -FULL_ROTATION / 2, FULL_ROTATION / 2);
   if (abs(leftShoulderTwistTar - leftShoulderTwistPos) > 1) {
     int dir = (leftShoulderTwistTar - leftShoulderTwistPos) / abs(leftShoulderTwistTar - leftShoulderTwistPos);
     float movement = servoSpeed * deltaTime * FULL_ROTATION;
     leftShoulderTwistPos += dir * movement;
-    int pwmVal = map(leftShoulderTwistPos, -FULL_ROTATION/2, FULL_ROTATION/2, 860, 2140);
+    int pwmVal = map(leftShoulderTwistPos, -FULL_ROTATION / 2, FULL_ROTATION / 2, 860, 2140);
     leftShoulderTwist.writeMicroseconds(pwmVal);
   }
 }
@@ -406,23 +401,23 @@ void moveLeftWrist(float deltaTime) {
 }
 
 void moveNeckPan(float deltaTime) {
-  neckPanTar = constrain(neckPanTar, -FULL_ROTATION/2, FULL_ROTATION/2);
+  neckPanTar = constrain(neckPanTar, -FULL_ROTATION / 2, FULL_ROTATION / 2);
   if (abs(neckPanTar - neckPanPos) > 1) {
     int dir = (neckPanTar - neckPanPos) / abs(neckPanTar - neckPanPos);
     float movement = servoSpeed * deltaTime * FULL_ROTATION;
     neckPanPos += dir * movement;
-    int pwmVal = map(neckPanPos, -FULL_ROTATION/2, FULL_ROTATION/2, 2140, 860);
+    int pwmVal = map(neckPanPos, -FULL_ROTATION / 2, FULL_ROTATION / 2, 2140, 860);
     neckPan.writeMicroseconds(pwmVal);
   }
 }
 
 void moveNeckTilt(float deltaTime) {
-  neckTiltTar = constrain(neckTiltTar, -FULL_ROTATION/2, FULL_ROTATION/2);
+  neckTiltTar = constrain(neckTiltTar, -FULL_ROTATION / 2, FULL_ROTATION / 2);
   if (abs(neckTiltTar - neckTiltPos) > 1) {
     int dir = (neckTiltTar - neckTiltPos) / abs(neckTiltTar - neckTiltPos);
     float movement = servoSpeed * deltaTime * FULL_ROTATION;
     neckTiltPos += dir * movement;
-    int pwmVal = map(neckTiltPos, -FULL_ROTATION/2, FULL_ROTATION/2, 2140, 860);
+    int pwmVal = map(neckTiltPos, -FULL_ROTATION / 2, FULL_ROTATION / 2, 2140, 860);
     neckTilt.writeMicroseconds(pwmVal);
   }
 }
