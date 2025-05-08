@@ -105,6 +105,7 @@ def approach(object, desired_dist):
             drive(50 + steering_rate, 50 - steering_rate)
 
             sleep(0.01)
+    eye.release()
 
 
 def calibrate_compass():
@@ -207,14 +208,6 @@ def look_at(item, eye):
         return None
 
 
-def listen_for_stop():
-    while True:
-        message = listen()
-        if "stop" in message:
-            stop_event.set()
-            break
-
-
 def grab(item):
     release_gripper()
     sleep(1)
@@ -258,10 +251,9 @@ def grab(item):
                 sleep(0.01)
         if get_ir_state():
             clench_gripper()
-            hand.release()
-            speak("grabbed")
             break
         sleep(0.01)
+    hand.release()
 
 
 def pick_up(item):
@@ -303,28 +295,56 @@ def pick_up(item):
 
 
 def look_for(item):
-
     pan_speed = 1
     NT.rotate(0)
     NP.rotate(0)
-    while in_motion:
+    while in_motion():
         sleep(0.01)
 
     speak("looking for " + str(item))
 
+    eye = cv2.VideoCapture(2)
     start_time = time.time()
 
-    x, y, h, w = locate(item)
-    while x == None:
-        x, y, h, w = locate(item)
-        NP.rotate(np.pi * np.sin(pan_speed * (time.time - start_time)))
-        sleep(0.01)
-    x_error, y_error = look_at(item)
-    while max(abs(x_error), abs(y_error)) > 40:
-        x_error, y_error = look_at(item)
-        sleep(0.01)
+    try:
+        while True:
+            x, y, h, w = locate(item, eye)
+            while x is None:
+                # Scanning for item
+                x, y, h, w = locate(item, eye)
+                NP.rotate(np.pi * np.sin(pan_speed *
+                          (time.time() - start_time)))
+                sleep(0.01)
 
-    speak("found " + str(item))
+            speak("I think I found the " + str(item))
+
+            not_found_count = 0
+            found_count = 0
+
+            while True:
+                x_error, y_error = look_at(item, eye)
+                if x_error is None:
+                    not_found_count += 1
+                else:
+                    found_count += 1
+
+                # Avoid division by zero
+                if not_found_count == 0:
+                    appearance_ratio = float('inf')
+                else:
+                    appearance_ratio = found_count / not_found_count
+
+                # Decide if item was lost or confirmed
+                if appearance_ratio < 0.1:
+                    speak("lost sight of " + str(item) + ", scanning again")
+                    break  # Go back to scanning
+                if appearance_ratio > 1:
+                    speak("found " + str(item))
+                    return  # Successful exit
+
+                sleep(0.01)
+    finally:
+        eye.release()  # Always release camera on any exit
 
 
 def converse(message):
@@ -347,6 +367,7 @@ def level_FB():
     LF.rotate(0)
     speak("zeroed FB")
 
+
 def level_LR():
     arduino.write(("zeroLR").encode("utf-8"))
     roll = get_roll()
@@ -360,21 +381,47 @@ def level_LR():
     speak("zeroed LR")
 
 
-def look_at_continually(item):
+###################################### THREADING ######################################
+
+def look_at_continually(item, stop_event):
     eye = cv2.VideoCapture(2)
-    while True:
+    while not stop_event.is_set():
         look_at(item, eye)
         sleep(0.01)
-        if stop_event.is_set():
+    eye.release()
+
+
+def start_look_at_thread(item="person"):
+    global stop_event, look_at_thread
+    stop_event = threading.Event()
+    look_at_thread = threading.Thread(
+        target=look_at_continually, args=(item, stop_event)
+    )
+    look_at_thread.start()
+
+
+def listen_for_stop(stop_event):
+    while True:
+        message = listen()
+        if "stop" in message:
+            stop_event.set()
             break
 
 
-###################################### MAIN ######################################
+def start_listen_for_stop_thread():
+    global stop_event, listen_for_stop_thread
+    stop_event = threading.Event()
+    listen_for_stop_thread = threading.Thread(
+        target=listen_for_stop, args=(stop_event,)
+    )
+    listen_for_stop_thread.start()
 
+
+###################################### MAIN ######################################
 os.system("amixer -q -M sset Headphone 100%")
 speak("robot python script successfully initiated... hello")
 
-sleep(3)
+sleep(1)
 
 pitch0 = get_pitch()
 NT.rotate(-20)
@@ -395,11 +442,9 @@ sleep(1)
 level_FB()
 level_LR()
 
-look_at_thread = threading.Thread(target=look_at_continually, args=("person",))
-stop_event = threading.Event()
-look_at_thread.start()
-sleep(2)
+start_look_at_thread()
 
+sleep(1)
 
 try:
     while True:
@@ -474,15 +519,11 @@ try:
             look_at_thread.join()
             NP.rotate(0)
             NT.rotate(0)
-            while in_motion:
+            while in_motion():
                 sleep(0.1)
             level_FB()
             level_LR()
-            look_at_thread = threading.Thread(
-                target=look_at_continually, args=("person",)
-            )
-            stop_event = threading.Event()
-            look_at_thread.start()
+            start_look_at_thread()
 
         ##### Calibration #####
 
@@ -496,17 +537,11 @@ try:
         elif "follow me" in message:
             stop_event.set()
             look_at_thread.join()
-            listen_for_stop_thread = threading.Thread(target=listen_for_stop)
-            stop_event = threading.Event()
-            listen_for_stop_thread.start()
-            while not stop_event:
+            start_listen_for_stop_thread()
+            while not stop_event.is_set():
                 approach("person", 0.5)
             listen_for_stop_thread.join()
-            look_at_thread = threading.Thread(
-                target=look_at_continually, args=("person",)
-            )
-            stop_event = threading.Event()
-            look_at_thread.start()
+            start_look_at_thread()
         elif "this location is" in message:
             name_location(substring_after(message, "to"))
         elif "power off" in message:
@@ -538,11 +573,7 @@ try:
             LW.rotate(0)
             while in_motion():
                 sleep(0.01)
-            look_at_thread = threading.Thread(
-                target=look_at_continually, args=("face",)
-            )
-            stop_event = threading.Event()
-            look_at_thread.start()
+            start_look_at_thread()
 
         else:
             converse(message)
