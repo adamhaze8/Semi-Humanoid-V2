@@ -21,7 +21,7 @@ chatbot = BorisChatbot()
 arm = Arm_3_DOF_Planar(0.245, 0.203, 0.25)
 
 drive_PID_controller = PID_Controller(0.5, 0, 0.1)
-follow_PID_controller = PID_Controller(0.5, 0, 0.1)
+follow_PID_controller = PID_Controller(1, 0, 0.1)
 
 arduino = serial.Serial("/dev/ttyACM0", 9600, timeout=1)
 
@@ -69,27 +69,30 @@ def go_to(location):
     drive("H")
 
 
-def approach(object, desired_dist):
+def approach(item, desired_dist):
     eye = cv2.VideoCapture(2)
     frame_width = eye.get(cv2.CAP_PROP_FRAME_WIDTH)
     frame_height = eye.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+    degrees_per_pixel = 90/frame_width
+
     previous_time = time.time()
-    speak("now following " + str(object))
     while True:
-        x, y, h, w = locate(object, eye)
-        if x is None:
+        errors = look_at(item, eye)
+        if errors is None:
             drive(0, 0)
-            speak(str(object) + "not found")
+            print(str(item) + " not found")
             sleep(0.01)
         else:
-            print("found")
-            if (x > (frame_width / 2) + 30) and (x < (frame_width / 2) - 30):
+            x_error, y_error = errors
+            
+            if (x_error < 30) and (x_error > -30):
                 neck_tilt = getattr(NT, "pos")
                 item_dist_from_sensor = get_distance()
-                item_dist = item_dist_from_sensor * np.cos(neck_tilt)
+                item_dist = item_dist_from_sensor * np.cos(np.deg2rad(neck_tilt))
                 if item_dist < desired_dist:
                     item_dist_from_sensor = get_distance()  # Double check sensor
-                    item_dist = item_dist_from_sensor * np.cos(neck_tilt)
+                    item_dist = item_dist_from_sensor * np.cos(np.deg2rad(neck_tilt))
                     if item_dist < desired_dist:
                         drive(0, 0)
                         break
@@ -97,14 +100,12 @@ def approach(object, desired_dist):
             current_time = time.time()
             dt = current_time - previous_time
             previous_time = current_time
-            error = getattr(NT, "pos") + (
-                x - frame_width / 2
-            )  # Need to make these same units
-            steering_rate = follow_PID_controller.update(error, dt)
-
-            drive(50 + steering_rate, 50 - steering_rate)
-
+            x_error = getattr(NP, "pos") + (x_error * degrees_per_pixel)
+            steering_rate = follow_PID_controller.update(x_error, dt)
+            print(20 + steering_rate)
+            #drive(20 - steering_rate, 20 + steering_rate)
             sleep(0.01)
+
     eye.release()
 
 
@@ -272,8 +273,8 @@ def pick_up(item):
     neck_tilt = getattr(NT, "pos")
 
     item_elevation = robot_camera_height - \
-        item_dist_from_sensor * np.sin(neck_tilt)
-    item_dist = item_dist_from_sensor * np.cos(neck_tilt)
+        item_dist_from_sensor * np.sin(np.deg2rad(neck_tilt))
+    item_dist = item_dist_from_sensor * np.cos(np.deg2rad(neck_tilt))
 
     desired_grab_dist = (
         0.3  # approximate distance arm will need to stretch from shoulder
@@ -289,7 +290,7 @@ def pick_up(item):
     desired_distance = norm * np.cos(desired_angle)
 
     drive_distance_PID(desired_distance - item_dist)
-    LF.rotate(desired_angle)
+    LF.rotate(np.rad2deg(desired_angle))
 
     # uhhhhhhhhhhh
 
@@ -405,6 +406,7 @@ def listen_for_stop(stop_event):
         message = listen()
         if "stop" in message:
             stop_event.set()
+            speak("stopping")
             break
 
 
@@ -535,11 +537,12 @@ try:
         elif "go to" in message:
             go_to(substring_after(message, "to"))
         elif "follow me" in message:
+            speak("now following you")
             stop_event.set()
             look_at_thread.join()
             start_listen_for_stop_thread()
             while not stop_event.is_set():
-                approach("person", 0.5)
+                approach("person", 1)
             listen_for_stop_thread.join()
             start_look_at_thread()
         elif "this location is" in message:
